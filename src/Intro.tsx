@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Image, Flex, Text } from '@chakra-ui/react';
 import { css, keyframes } from '@emotion/react';
-import { Link } from 'react-router-dom'; // Import Link from react-router-dom
+import { Link } from 'react-router-dom'; 
 
 
 
@@ -82,9 +82,9 @@ const NewPage = () => {
             borderColor="#fff"
             flexWrap="wrap"
             alignItems="center"
-            justifyContent="center" // Center items horizontally
-            h="auto" // Allow height to adjust based on content
-            flexDirection="column" // Stack items vertically
+            justifyContent="center"
+            h="auto"
+            flexDirection="column"
           >
             <Image
               src="/images/claimbd.png"

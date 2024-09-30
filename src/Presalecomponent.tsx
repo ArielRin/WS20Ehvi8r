@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Flex, Text, Button, Progress, Input, Image, InputGroup, InputLeftElement } from '@chakra-ui/react';
 import { ethers } from 'ethers';
-import { useAppKit, useWalletInfo } from '@reown/appkit/react';
-import PresaleABI from './PresaleABI.json'; // Assuming ABI file is present
+import { useAppKitProvider, useWalletInfo, useAppKit } from '@reown/appkit/react';  // Reown AppKit
+import PresaleABI from './PresaleABI.json';
 
-const contractAddress = '0x0377eDA65bb8A04D565f2166FB51AC9fEDdb05D9'; // Presale contract address
-const usdtAddress = '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2'; // USDT token address
+const contractAddress = '0xA716C25e30Af41472bd51C92A643861d4Fa28021';
+const usdtAddress = '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2';
 
 const PresaleComponent = () => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -13,10 +13,10 @@ const PresaleComponent = () => {
   const [usdtAmount, setUsdtAmount] = useState('');
   const [selectedToken, setSelectedToken] = useState<'ETH' | 'USDT'>('ETH');
 
-  const { walletInfo } = useWalletInfo(); // Get wallet information from Reown AppKit
-  const { open } = useAppKit(); // Hook to control modal
+  const { walletProvider } = useAppKitProvider(); // Ensuring this uses AppKit provider
+  const { walletInfo } = useWalletInfo();
+  const { open } = useAppKit();  // For opening wallet connection
 
-  // Countdown target date
   const targetDate = new Date('2024-11-05T00:00:00');
 
   useEffect(() => {
@@ -39,18 +39,26 @@ const PresaleComponent = () => {
     }
 
     try {
-      const provider = new ethers.BrowserProvider(walletInfo.provider); // Use provider from walletInfo
-      const signer = provider.getSigner();
+      // Ensure wallet is connected
+      if (!walletProvider) {
+        await open(); // Open Reown AppKit to connect wallet
+        return;
+      }
+
+      const provider = new ethers.BrowserProvider(walletProvider);
+      const signer = await provider.getSigner();
+
       const contract = new ethers.Contract(contractAddress, PresaleABI, signer);
 
+      // Transaction with ETH
       const transaction = await contract.contributeWithETH({
-        value: ethers.parseEther(ethAmount), // Convert ETH to correct format
+        value: ethers.parseEther(ethAmount),
       });
 
       await transaction.wait();
       alert('Transaction successful');
     } catch (error) {
-      console.error('Error buying with ETH:', error);
+      console.error('Error buying with ETH:', error.message || error);
       alert('Transaction failed');
     }
   };
@@ -62,8 +70,13 @@ const PresaleComponent = () => {
     }
 
     try {
-      const provider = new ethers.BrowserProvider(walletInfo.provider); // Use provider from walletInfo
-      const signer = provider.getSigner();
+      if (!walletProvider) {
+        await open(); // Open wallet modal if no wallet connected
+        return;
+      }
+
+      const provider = new ethers.BrowserProvider(walletProvider);
+      const signer = await provider.getSigner();
 
       const contract = new ethers.Contract(contractAddress, PresaleABI, signer);
       const usdtContract = new ethers.Contract(usdtAddress, [
@@ -79,25 +92,30 @@ const PresaleComponent = () => {
         }
       ], signer);
 
-      // Approve USDT transfer to the presale contract
-      const approvalTx = await usdtContract.approve(contractAddress, ethers.parseUnits(usdtAmount, 6)); // 6 decimals for USDT
+      // Approve USDT for the presale contract
+      const approvalTx = await usdtContract.approve(contractAddress, ethers.parseUnits(usdtAmount, 6));
       await approvalTx.wait();
 
-      // Now contribute to presale
-      const transaction = await contract.contributeWithUSDT(ethers.parseUnits(usdtAmount, 6)); // 6 decimals for USDT
+      // Contribute with USDT
+      const transaction = await contract.contributeWithUSDT(ethers.parseUnits(usdtAmount, 6));
       await transaction.wait();
 
       alert('Transaction successful');
     } catch (error) {
-      console.error('Error buying with USDT:', error);
+      console.error('Error buying with USDT:', error.message || error);
       alert('Transaction failed');
     }
   };
 
   const handleClaimTokens = async () => {
     try {
-      const provider = new ethers.BrowserProvider(walletInfo.provider); // Use provider from walletInfo
-      const signer = provider.getSigner();
+      if (!walletProvider) {
+        await open();  // Open wallet connection if not connected
+        return;
+      }
+
+      const provider = new ethers.BrowserProvider(walletProvider);
+      const signer = await provider.getSigner();
       const contract = new ethers.Contract(contractAddress, PresaleABI, signer);
 
       const transaction = await contract.claimTokens();
@@ -105,7 +123,7 @@ const PresaleComponent = () => {
 
       alert('Tokens claimed successfully');
     } catch (error) {
-      console.error('Error claiming tokens:', error);
+      console.error('Error claiming tokens:', error.message || error);
       alert('Claim failed');
     }
   };
@@ -121,7 +139,6 @@ const PresaleComponent = () => {
       color="white"
       width="100%"
     >
-      {/* Countdown Timer */}
       <Box textAlign="center" mb={4}>
         <Text fontSize="2xl" fontWeight="bold">Presale ending in</Text>
         <Text fontSize="4xl" mt={2}>
@@ -129,13 +146,11 @@ const PresaleComponent = () => {
         </Text>
       </Box>
 
-      {/* Progress and Stats */}
       <Box width="100%" mb={4}>
         <Text fontSize="xl" textAlign="center" mt={2}>Total Sold: 794,092/1,000,000,000</Text>
         <Progress value={16} size="lg" colorScheme="blue" borderRadius="md" mt={4} />
       </Box>
 
-      {/* Token Toggle Buttons */}
       <Flex justifyContent="space-between" width="100%" mb={4} gap={4}>
         <Button
           flex={1}
@@ -176,7 +191,7 @@ const PresaleComponent = () => {
           color="white"
           borderRadius="md"
           borderWidth="4px"
-          borderColor="transparent" // Keeps consistent border
+          borderColor="transparent"
           display="flex"
           alignItems="center"
           justifyContent="center"
@@ -187,7 +202,6 @@ const PresaleComponent = () => {
         </Button>
       </Flex>
 
-      {/* Input Section */}
       <Flex justifyContent="space-between" width="100%" mb={8}>
         <Box width="48%">
           <Text mb={2} fontSize="sm">Enter {selectedToken} amount</Text>
@@ -208,7 +222,6 @@ const PresaleComponent = () => {
           </InputGroup>
         </Box>
 
-        {/* Estimated BABYDOGE Tokens */}
         <Box width="48%">
           <Text mb={2} fontSize="sm">$BABYDOGE Estimated</Text>
           <InputGroup>
@@ -227,7 +240,6 @@ const PresaleComponent = () => {
         </Box>
       </Flex>
 
-      {/* Action Buttons */}
       <Button
         colorScheme="blue"
         mt={4}

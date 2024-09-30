@@ -1,10 +1,10 @@
 
-### Installation Instructions for vite and react using node.js
+# App/Dapp Installation Instructions for vite and react using node.js
 
 1. **Ensure Node.js is installed**:
    You need Node.js installed on your machine. If Node.js is not already installed, download and install the latest version from [nodejs.org](https://nodejs.org/).
 
-   Verify the installation by running:
+   Verify the installation by running (in a cmd or terminal):
 
    ```bash
    node -v
@@ -76,7 +76,3 @@
    ```
 
    This will start the development server, and your app should be accessible at `http://localhost:3000` (or another specified port).
-
----
-
-Let me know if you need more help with the installation steps!

@@ -9,7 +9,8 @@ import Presalecomponent from './Presalecomponent';
 
 import { BrowserProvider, Contract, formatUnits } from 'ethers';
 import { EthersAdapter } from '@reown/appkit-adapter-ethers';
-import { base } from '@reown/appkit/networks';
+import { base, baseSepolia } from '@reown/appkit/networks';
+// oi Ehvi8r change or add chains see this https://github.com/wevm/viem/tree/main/src/chains/definitions
 
 import {
   createAppKit,
@@ -18,25 +19,29 @@ import {
   useAppKitAccount,
 } from '@reown/appkit/react';
 
+const ethersAdapter = new EthersAdapter();
 
-// 1. Get projectId
+const networks = [base, baseSepolia];
+
 const projectId = import.meta.env.VITE_PROJECT_ID;
 if (!projectId) {
   throw new Error('VITE_PROJECT_ID is not set');
 }
 
-// 2. Set networks
-const networks = [base];
 
-const ethersAdapter = new EthersAdapter();
-
-// 3. Create AppKit
 createAppKit({
   adapters: [ethersAdapter],
   networks,
   projectId,
+
   features: {
     analytics: true,
+    onramp: true,
+    swaps: false,
+    email: false,
+    socials: [],
+    emailShowWallets: false,
+
   },
   themeMode: 'dark',
   themeVariables: {
@@ -49,11 +54,13 @@ createAppKit({
     },
   metadata: {
     name: 'WSM20',
-    description: '',
+    description: 'WSM20 Token Presale ',
     url: '',
     icons: ['/logo.png']
   },
   enableCoinbase: false,
+
+
 
   featuredWalletIds: [
     '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0',
