@@ -1,144 +1,31 @@
 /**
- *Submitted for verification at Etherscan.io on 2023-09-04
+ *Submitted for verification at basescan.org on 2024-09-30
 */
 
-///SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: UNLICENSED
+
+
+
+/*
+token address 0xA716C25e30Af41472bd51C92A643861d4Fa28021
+usdt address 0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2
+eth chainlink aggrigator 0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70
+tokens offer for presale 100000000000000000000 (18 decimal this test is 100 tokens)
+softcapUSD 3000000 (6decimal usdt this test is 3 dollars)
+
+
+*/
 
 
 
 
 pragma solidity ^0.8;
-pragma experimental ABIEncoderV2;
 
 interface IERC20 {
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    function name() external view returns (string memory);
-
-    function symbol() external view returns (string memory);
-
-    function decimals() external view returns (uint8);
-
-    function totalSupply() external view returns (uint256);
-
-    function balanceOf(address owner) external view returns (uint256);
-
-    function allowance(address owner, address spender)
-        external
-        view
-        returns (uint256);
-
-    function approve(address spender, uint256 value) external returns (bool);
-
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
     function transfer(address to, uint256 value) external returns (bool);
-
-    function transferFrom(
-        address from,
-        address to,
-        uint256 value
-    ) external returns (bool);
-}
-
-contract Context {
-    // Empty internal constructor, to prevent people from mistakenly deploying
-    // an instance of this contract, which should be used via inheritance.
-    function _msgSender() internal view returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view returns (bytes memory) {
-        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
-        return msg.data;
-    }
-}
-/* --------- Access Control --------- */
-contract Ownable is Context {
-    address private _owner;
-
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
-
-    constructor(){
-        address msgSender = _msgSender();
-        _owner = msgSender;
-        emit OwnershipTransferred(address(0), msgSender);
-    }
-
-    function owner() public view returns (address) {
-        return _owner;
-    }
-
-    modifier onlyOwner() {
-        require(_owner == _msgSender(), "Ownable: caller is not the owner");
-        _;
-    }
-
-    function renounceOwnership() public onlyOwner {
-        emit OwnershipTransferred(_owner, address(0));
-        _owner = address(0);
-    }
-
-    function transferOwnership(address newOwner) public onlyOwner {
-        _transferOwnership(newOwner);
-    }
-
-    function _transferOwnership(address newOwner) internal {
-        require(
-            newOwner != address(0),
-            "Ownable: new owner is the zero address"
-        );
-        emit OwnershipTransferred(_owner, newOwner);
-        _owner = newOwner;
-    }
-}
-
-contract Claimable is Ownable {
-    bool isclaimable = false;
-
-    function startClaim()
-        external
-        onlyOwner
-    {
-        isclaimable = true;
-    }
-
-    function stopClaim()
-        external
-        onlyOwner
-    {
-        isclaimable = false;
-    }
-
-
-    function getClaimStatus()
-        external view returns(bool)
-    {
-        return isclaimable;
-    }
-
-    modifier isClaim() {
-        require(isclaimable, "Claim is not available now.");
-        _;
-    }
-
-    function claimToken(address tokenAddress, uint256 amount)
-        external
-        onlyOwner
-    {
-        IERC20(tokenAddress).transfer(owner(), amount);
-    }
-
-    function claimETH(uint256 amount) external onlyOwner {
-        (bool sent, ) = owner().call{value: amount}("");
-        require(sent, "Failed to send Ether");
-    }
+    function balanceOf(address owner) external view returns (uint256);
+    function allowance(address owner, address spender) external view returns (uint256);
 }
 
 interface Aggregator {
@@ -154,99 +41,166 @@ interface Aggregator {
         );
 }
 
+contract Presale {
+    address public owner;
+    address public presaleTokenAddress;
+    address public USDTAddress;
+    address public chainlinkPricefeedEth;
+    uint256 public totalTokensOfferedPresale;
+    uint256 public softCapUSD;
+    uint256 public totalContributionsUSD;
+    bool public presaleSuccessful;
+    bool public claimEnabled;
+    bool public presaleCancelled;
 
-contract WSM20_Presale is Claimable {
-    event Buy(address to, uint256 amount);
-    event Claim(address to, uint256 amount);
-    address public tokenAddress;
-    uint256 price;
-    uint256 public startTime;
-    uint256 public totalSaled;
+    mapping(address => uint256) public ethContributions;
+    mapping(address => uint256) public usdtContributions;
 
-    address aggregatorInterface = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
-    address USDTInterface = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
-    uint256 public baseDecimal = 1000000;
-
-    mapping(address => uint256) public userDeposits;
+    event TokensPurchased(address indexed buyer, uint256 amountContributed);
+    event TokensClaimed(address indexed claimer, uint256 amountClaimed);
+    event PresaleSuccessful(uint256 totalContributionsUSD, uint256 totalTokensOfferedPresaleDistributed);
+    event RefundIssued(address indexed user, uint256 amountRefunded);
+    event ClaimEnabled();
+    event PresaleCancelled();
 
     constructor(
-        address _tokenAddress,
-        uint256 _price
+        address _presaleTokenAddress,
+        address _USDTAddress,
+        address _chainlinkPricefeedEth,
+        uint256 _totalTokensOfferedPresale,
+        uint256 _softCapUSD
     ) {
-        tokenAddress = _tokenAddress;
-        price = _price;
-        startTime = block.timestamp;
-        totalSaled = 0;
+        owner = msg.sender;
+        presaleTokenAddress = _presaleTokenAddress;
+        USDTAddress = _USDTAddress;
+        chainlinkPricefeedEth = _chainlinkPricefeedEth;
+        totalTokensOfferedPresale = _totalTokensOfferedPresale;
+        softCapUSD = _softCapUSD;
+        presaleSuccessful = false;
+        claimEnabled = false;
+        presaleCancelled = false;
     }
 
-    function getLatestPrice() public view returns (uint256) {
-        (, int256 ethPrice, , , ) = Aggregator(aggregatorInterface).latestRoundData();
-        ethPrice = (ethPrice * (10 ** 10));
-        return uint256(ethPrice);
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Caller is not owner");
+        _;
     }
 
-    function ethBuyHelper(
-        uint256 ethAmount
-    ) public view returns (uint256 amount) {
-        amount = ethAmount * getLatestPrice() * price/(1e6  * 10 **18) ;
+    modifier presaleNotCancelled() {
+        require(!presaleCancelled, "Presale has been cancelled");
+        _;
     }
 
-    function resetPrice(uint256 _price) public onlyOwner {
-        price = _price;
-    }
-    function resetStartTime() public onlyOwner {
-        startTime = block.timestamp;
+    function getLatestETHPrice() public view returns (uint256) {
+        (, int256 price, , ,) = Aggregator(chainlinkPricefeedEth).latestRoundData();
+        return uint256(price * 10 ** 10);
     }
 
-    function buy() public payable {
-        uint256 tokenAmount = ethBuyHelper(msg.value);
-        userDeposits[_msgSender()] += tokenAmount;
-        totalSaled += tokenAmount;
-        (bool sent, ) = owner().call{value: msg.value}("");
-        require(sent, "Failed to send Ether");
-        emit Buy(msg.sender, tokenAmount);
+    function ethToUSD(uint256 ethAmount) public view returns (uint256) {
+        uint256 ethPriceInUSD = getLatestETHPrice();
+        uint256 ethInUSD = (ethAmount * ethPriceInUSD) / 1 ether;
+        return ethInUSD / 1e12;
     }
 
-    function claimUserToken() public isClaim {
-        require(userDeposits[_msgSender()] >= 0, "Please buy token.");
-        IERC20(tokenAddress).transfer(msg.sender, userDeposits[_msgSender()]);
-        userDeposits[_msgSender()] = 0;
-        emit Claim(msg.sender, userDeposits[_msgSender()]);
+    function usdtToUSD(uint256 usdtAmount) public pure returns (uint256) {
+        return usdtAmount;
     }
 
-    function getClaimAmount(address userAddress) public view returns (uint256 claimAmount) {
-        claimAmount = userDeposits[userAddress];
+    function contributeWithETH() external payable presaleNotCancelled {
+        require(msg.value > 0, "Must contribute ETH");
+
+        uint256 contributionInUSD = ethToUSD(msg.value);
+        ethContributions[msg.sender] += msg.value;
+        totalContributionsUSD += contributionInUSD;
+
+        emit TokensPurchased(msg.sender, contributionInUSD);
     }
 
-    function usdtBuyHelper(
-        uint256 usdPrice
-    ) public view returns (uint256 amount) {
-        amount = usdPrice * price/baseDecimal ;
+    function contributeWithUSDT(uint256 usdtAmount) external presaleNotCancelled {
+        require(usdtAmount > 0, "Must contribute USDT");
+
+        uint256 allowance = IERC20(USDTAddress).allowance(msg.sender, address(this));
+        require(allowance >= usdtAmount, "USDT allowance too low");
+
+        IERC20(USDTAddress).transferFrom(msg.sender, address(this), usdtAmount);
+        usdtContributions[msg.sender] += usdtAmount;
+        totalContributionsUSD += usdtToUSD(usdtAmount);
+
+        emit TokensPurchased(msg.sender, usdtAmount);
     }
 
-    function buyWithUSDT(
-        uint256 usdtPrice
-    ) external returns (bool) {
-        uint256 amount = usdtBuyHelper(usdtPrice);
-        totalSaled += amount;
-        uint256 ourAllowance = IERC20(USDTInterface).allowance(
-            _msgSender(),
-            address(this)
-        );
-        require(usdtPrice <= ourAllowance, "Make sure to add enough allowance");
-        userDeposits[_msgSender()] += amount;
-        return true;
+    function endPresale() external onlyOwner presaleNotCancelled {
+        require(totalContributionsUSD >= softCapUSD, "Soft cap in USD not reached");
+        presaleSuccessful = true;
+        emit PresaleSuccessful(totalContributionsUSD, totalTokensOfferedPresale);
     }
 
-    function getPrice() public view returns (uint256 tokenPrice) {
-        tokenPrice = price;
+    function cancelPresale() external onlyOwner presaleNotCancelled {
+        presaleCancelled = true;
+        emit PresaleCancelled();
     }
 
-    receive() external payable {
-        buy();
+    function enableClaimTokens() external onlyOwner {
+        require(presaleSuccessful, "Presale must be successful to enable claims");
+        require(!presaleCancelled, "Cannot enable claims, presale was cancelled");
+        claimEnabled = true;
+        emit ClaimEnabled();
     }
 
-    fallback() external payable {
-        buy();
+    function claimTokens() external {
+        require(presaleSuccessful, "Presale not successful");
+        require(claimEnabled, "Token claim is not enabled");
+        require(!presaleCancelled, "Presale was cancelled, no tokens to claim");
+
+        uint256 userTotalContributionUSD = ethToUSD(ethContributions[msg.sender]) + usdtContributions[msg.sender];
+        require(userTotalContributionUSD > 0, "No contributions from user");
+
+        uint256 userSharePercentage = (userTotalContributionUSD * 1e6) / totalContributionsUSD;
+
+        uint256 userTokenAmount = (totalTokensOfferedPresale * userSharePercentage) / 1e6;
+
+        require(userTokenAmount > 0, "No tokens to claim");
+
+        IERC20(presaleTokenAddress).transfer(msg.sender, userTokenAmount);
+
+        ethContributions[msg.sender] = 0;
+        usdtContributions[msg.sender] = 0;
+
+        emit TokensClaimed(msg.sender, userTokenAmount);
+    }
+
+    function refund() external {
+        require(presaleCancelled || totalContributionsUSD < softCapUSD, "No refunds, presale successful");
+
+        uint256 ethContribution = ethContributions[msg.sender];
+        if (ethContribution > 0) {
+            ethContributions[msg.sender] = 0;
+            payable(msg.sender).transfer(ethContribution);
+            emit RefundIssued(msg.sender, ethContribution);
+        }
+
+        uint256 usdtContribution = usdtContributions[msg.sender];
+        if (usdtContribution > 0) {
+            usdtContributions[msg.sender] = 0;
+            IERC20(USDTAddress).transfer(msg.sender, usdtContribution);
+            emit RefundIssued(msg.sender, usdtContribution);
+        }
+    }
+
+    function withdrawRemainingTokens() external onlyOwner {
+        require(presaleSuccessful, "Presale not successful");
+        require(!presaleCancelled, "Presale was cancelled, no withdrawal");
+        uint256 remainingTokens = IERC20(presaleTokenAddress).balanceOf(address(this));
+        IERC20(presaleTokenAddress).transfer(owner, remainingTokens);
+    }
+
+    function withdrawContributions() external onlyOwner {
+        require(presaleSuccessful, "Presale not successful");
+        require(!presaleCancelled, "Presale was cancelled, no withdrawal");
+
+        payable(owner).transfer(address(this).balance);
+
+        uint256 usdtBalance = IERC20(USDTAddress).balanceOf(address(this));
+        IERC20(USDTAddress).transfer(owner, usdtBalance);
     }
 }

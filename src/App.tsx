@@ -47,6 +47,7 @@ const ethersConfig = defaultConfig({
     url: '',
     icons: ['/logo.png']
   },
+  enableCoinbase: false,
   defaultChainId: 84532,
   rpcUrl: 'https://sepolia.basescan.org',
   auth: {
@@ -60,11 +61,11 @@ const modal = createWeb3Modal({
   ethersConfig,
   chains,
   projectId,
-  enableAnalytics: true,
+  enableAnalytics: false,
   themeMode: 'dark',
   themeVariables: {
-    '--w3m-color-mix': 'grey',
-    '--w3m-accent': '#313131',
+    '--w3m-color-mix': 'blue',
+    '--w3m-accent': 'blue',
   },
   chainImages: {
       8453: '/images/base.png',
@@ -72,7 +73,8 @@ const modal = createWeb3Modal({
       84532: '/images/baset.png',
     },
   featuredWalletIds: [
-    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96'
+    '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0',
+    '0b415a746fb9ee99cce155c2ceca0c6f6061b1dbca2d722b3ba16381d0562150'
   ]
 });
 
