@@ -15,7 +15,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import HttpProvider from "web3-providers-http";
+import HttpProvider, { HttpProviderOptions } from "web3-providers-http";
 import WebSocketProvider from "web3-providers-ws";
 import {
     EthExecutionAPI, JsonRpcResult, ProviderConnectInfo, ProviderMessage,
@@ -23,10 +23,12 @@ import {
     Web3Eip1193ProviderEventCallback,
     Web3ProviderEventCallback,
     Web3ProviderMessageEventCallback,
-    Web3ProviderStatus
+    Web3ProviderStatus,
+    JsonRpcResponseWithResult,
 } from "web3-types";
 import { Eip1193Provider } from "web3-utils";
-import { Transport, Network } from "./types.js";
+import { Transport, Network, SocketOptions } from "./types.js";
+import { ProviderConfigOptionsError } from "./errors.js";
 
 /* 
 This class can be used to create new providers only when there is custom logic required in each Request method like
@@ -36,29 +38,49 @@ Another simpler approach can be a function simply returning URL strings instead 
 no additional logic implementation is required in the provider.
 */
 
-export abstract class Web3ExternalProvider <
-API extends Web3APISpec = EthExecutionAPI,
+export abstract class Web3ExternalProvider<
+    API extends Web3APISpec = EthExecutionAPI,
 > extends Eip1193Provider {
 
     public provider!: Web3BaseProvider;
     public readonly transport: Transport;
 
-    public abstract getRPCURL(network: Network,transport: Transport,token: string, host: string): string;
+    public abstract getRPCURL(network: Network, transport: Transport, token: string, host: string): string;
 
     public constructor(
         network: Network,
         transport: Transport,
         token: string,
-        host: string) {
-            
+        host: string,
+        providerConfigOptions?: HttpProviderOptions | SocketOptions) {
+
         super();
+
+        if(providerConfigOptions!== undefined && 
+            transport === Transport.HTTPS && 
+            !('providerOptions' in providerConfigOptions)){
+
+            throw new ProviderConfigOptionsError("HTTP Provider");
+        } 
+        else if(providerConfigOptions!== undefined &&
+             transport === Transport.WebSocket && 
+             !( 'socketOptions' in providerConfigOptions ||
+                'reconnectOptions' in providerConfigOptions 
+        )){
+            throw new ProviderConfigOptionsError("Websocket Provider");
+        }
 
         this.transport = transport;
         if (transport === Transport.HTTPS) {
-            this.provider = new HttpProvider(this.getRPCURL(network, transport, token, host));
+            this.provider = new HttpProvider(
+                this.getRPCURL(network, transport, token, host), 
+                providerConfigOptions as HttpProviderOptions);
         }
         else if (transport === Transport.WebSocket) {
-            this.provider = new WebSocketProvider(this.getRPCURL(network, transport, token, host));
+            this.provider = new WebSocketProvider(
+                this.getRPCURL(network, transport, token, host), 
+                (providerConfigOptions as SocketOptions)?.socketOptions, 
+                (providerConfigOptions as SocketOptions)?.reconnectOptions);
         }
     }
 
@@ -68,14 +90,14 @@ API extends Web3APISpec = EthExecutionAPI,
     >(
         payload: Web3APIPayload<EthExecutionAPI, Method>,
         requestOptions?: RequestInit,
-    ): Promise<ResultType> {
+    ): Promise<JsonRpcResponseWithResult<ResultType>> {
 
         if (this.transport === Transport.HTTPS) {
-            return ( (this.provider as HttpProvider).request(payload, requestOptions)) as unknown as Promise<ResultType>;
+            return await ((this.provider as HttpProvider).request(payload, requestOptions)) as unknown as JsonRpcResponseWithResult<ResultType>;
         }
-        
-        return ( (this.provider as WebSocketProvider).request(payload)) as unknown as Promise<ResultType>;
-        
+
+        return (this.provider as WebSocketProvider).request(payload);
+
     }
 
     public getStatus(): Web3ProviderStatus {
@@ -133,3 +155,4 @@ API extends Web3APISpec = EthExecutionAPI,
             this.provider.removeListener(_type as any, _listener as any);
     }
 }
+
