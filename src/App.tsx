@@ -28,20 +28,32 @@ const metadata = {
   icons: ['/logo.png'],
 };
 
-// 4. Create an AppKit instance
-createAppKit({
-  adapters: [new EthersAdapter()],
-  networks,
-  metadata,
-  projectId,
-  features: {
-    analytics: true,
-    onramp: true,
-    swaps: false,
-    email: false,
-    socials: [],
-    emailShowWallets: false,
+  // added testnets for dev recreation of joeys frontend works
+    { chainId: 84532, name: 'Base Sepolia', currency: 'ETH', explorerUrl: 'https://sepolia.basescan.org', rpcUrl: 'https://sepolia.base.org' }
+
+];
+
+const ethersConfig = defaultConfig({
+  metadata: {
+    name: 'WSM20',
+    description: '',
+    url: '',
+    icons: ['/logo.png']
   },
+  defaultChainId: 84532,
+  rpcUrl: 'https://sepolia.basescan.org',
+  auth: {
+    email: false,
+    showWallets: true,
+    walletFeatures: true
+  }
+});
+
+const modal = createWeb3Modal({
+  ethersConfig,
+  chains,
+  projectId,
+  enableAnalytics: true,
   themeMode: 'dark',
   themeVariables: {
     '--w3m-color-mix': 'grey',
