@@ -44,8 +44,8 @@ createAppKit({
   },
   themeMode: 'dark',
   themeVariables: {
-    '--w3m-color-mix': 'blue',
-    '--w3m-accent': 'blue',
+    '--w3m-color-mix': 'grey',
+    '--w3m-accent': '#313131',
   },
   chainImages: {
     84532: '/images/baset.png',
