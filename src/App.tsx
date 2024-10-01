@@ -17,7 +17,10 @@ import {
   useAppKitState,
   useAppKitProvider,
   useAppKitAccount,
+  useAppKit
 } from '@reown/appkit/react';
+
+
 
 const ethersAdapter = new EthersAdapter();
 
@@ -64,11 +67,52 @@ createAppKit({
 
   featuredWalletIds: [
     '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0',
-    '0b415a746fb9ee99cce155c2ceca0c6f6061b1dbca2d722b3ba16381d0562150'
+    '0b415a746fb9ee99cce155c2ceca0c6f6061b1dbca2d722b3ba16381d0562150',
+    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96'
   ]
 });
 
 function App() {
+  const [provider, setProvider] = useState<BrowserProvider | null>(null);
+  const [connected, setConnected] = useState(false);
+
+  const { open, close } = useAppKit();
+  const { address, chainId, isConnected } = useAppKitAccount();
+  const { walletProvider } = useAppKitProvider();
+
+  useEffect(() => {
+    const connectWalletOnPageLoad = async () => {
+      if (localStorage.getItem("isWalletConnected") === "true") {
+        await connectWallet();
+      }
+    };
+    connectWalletOnPageLoad();
+  }, []);
+
+  const connectWallet = async () => {
+    try {
+      await open();
+      if (walletProvider) {
+        const provider = new BrowserProvider(walletProvider);
+        setProvider(provider);
+        setConnected(true);
+        localStorage.setItem("isWalletConnected", "true");
+      } else {
+        console.error("walletProvider is undefined");
+      }
+    } catch (error) {
+      console.error("Could not get a wallet connection", error);
+    }
+  };
+
+
+  const disconnectWallet = async () => {
+    await close();
+    setProvider(null);
+    setConnected(false);
+    localStorage.removeItem("isWalletConnected");
+  };
+
 
 
 

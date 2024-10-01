@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Flex, Text, Button, Progress, Input, Image, InputGroup, InputLeftElement } from '@chakra-ui/react';
-import { ethers } from 'ethers';
-import { useAppKitProvider, useWalletInfo, useAppKit } from '@reown/appkit/react';  // Reown AppKit
+import { BrowserProvider, ethers } from 'ethers';
+import {
+  useAppKitProvider,
+  useAppKitAccount,
+  useAppKit,
+} from '@reown/appkit/react';
 import PresaleABI from './PresaleABI.json';
 
 const contractAddress = '0xA716C25e30Af41472bd51C92A643861d4Fa28021';
@@ -12,13 +16,16 @@ const PresaleComponent = () => {
   const [ethAmount, setEthAmount] = useState('');
   const [usdtAmount, setUsdtAmount] = useState('');
   const [selectedToken, setSelectedToken] = useState<'ETH' | 'USDT'>('ETH');
+  const [contract, setContract] = useState<ethers.Contract | null>(null); // Store contract instance
 
-  const { walletProvider } = useAppKitProvider(); // Ensuring this uses AppKit provider
-  const { walletInfo } = useWalletInfo();
-  const { open } = useAppKit();  // For opening wallet connection
+  // Reown AppKit hooks
+  const { walletProvider } = useAppKitProvider(); // Get wallet provider from Reown
+  const { open } = useAppKit(); // Open wallet connection modal
+  const { address, isConnected } = useAppKitAccount(); // Get connected wallet address and status
 
   const targetDate = new Date('2024-11-05T00:00:00');
 
+  // Countdown logic for presale timer
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -32,29 +39,27 @@ const PresaleComponent = () => {
     return () => clearInterval(interval);
   }, [targetDate]);
 
+  // Initialize contract after the wallet is connected
+  useEffect(() => {
+    const initializeContract = async () => {
+      if (walletProvider && isConnected) {
+        const provider = new BrowserProvider(walletProvider);
+        const signer = await provider.getSigner();
+        const presaleContract = new ethers.Contract(contractAddress, PresaleABI, signer);
+        setContract(presaleContract); // Set the contract instance
+      }
+    };
+    initializeContract();
+  }, [walletProvider, isConnected]);
+
+  // Handle purchasing with ETH
   const handleBuyWithETH = async () => {
-    if (!ethAmount || isNaN(Number(ethAmount))) {
-      alert('Please enter a valid ETH amount');
-      return;
-    }
+    if (!contract) return; // Prevent interaction if contract is not initialized
 
     try {
-      // Ensure wallet is connected
-      if (!walletProvider) {
-        await open(); // Open Reown AppKit to connect wallet
-        return;
-      }
-
-      const provider = new ethers.BrowserProvider(walletProvider);
-      const signer = await provider.getSigner();
-
-      const contract = new ethers.Contract(contractAddress, PresaleABI, signer);
-
-      // Transaction with ETH
       const transaction = await contract.contributeWithETH({
         value: ethers.parseEther(ethAmount),
       });
-
       await transaction.wait();
       alert('Transaction successful');
     } catch (error) {
@@ -63,22 +68,11 @@ const PresaleComponent = () => {
     }
   };
 
+  // Handle purchasing with USDT
   const handleBuyWithUSDT = async () => {
-    if (!usdtAmount || isNaN(Number(usdtAmount))) {
-      alert('Please enter a valid USDT amount');
-      return;
-    }
+    if (!contract) return; // Prevent interaction if contract is not initialized
 
     try {
-      if (!walletProvider) {
-        await open(); // Open wallet modal if no wallet connected
-        return;
-      }
-
-      const provider = new ethers.BrowserProvider(walletProvider);
-      const signer = await provider.getSigner();
-
-      const contract = new ethers.Contract(contractAddress, PresaleABI, signer);
       const usdtContract = new ethers.Contract(usdtAddress, [
         {
           "inputs": [
@@ -90,7 +84,7 @@ const PresaleComponent = () => {
           "stateMutability": "nonpayable",
           "type": "function"
         }
-      ], signer);
+      ], contract.signer);
 
       // Approve USDT for the presale contract
       const approvalTx = await usdtContract.approve(contractAddress, ethers.parseUnits(usdtAmount, 6));
@@ -107,17 +101,11 @@ const PresaleComponent = () => {
     }
   };
 
+  // Handle claiming tokens
   const handleClaimTokens = async () => {
+    if (!contract) return; // Prevent interaction if contract is not initialized
+
     try {
-      if (!walletProvider) {
-        await open();  // Open wallet connection if not connected
-        return;
-      }
-
-      const provider = new ethers.BrowserProvider(walletProvider);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(contractAddress, PresaleABI, signer);
-
       const transaction = await contract.claimTokens();
       await transaction.wait();
 
@@ -139,6 +127,7 @@ const PresaleComponent = () => {
       color="white"
       width="100%"
     >
+      {/* Presale countdown */}
       <Box textAlign="center" mb={4}>
         <Text fontSize="2xl" fontWeight="bold">Presale ending in</Text>
         <Text fontSize="4xl" mt={2}>
@@ -146,11 +135,13 @@ const PresaleComponent = () => {
         </Text>
       </Box>
 
+      {/* Total sold and progress */}
       <Box width="100%" mb={4}>
         <Text fontSize="xl" textAlign="center" mt={2}>Total Sold: 794,092/1,000,000,000</Text>
         <Progress value={16} size="lg" colorScheme="blue" borderRadius="md" mt={4} />
       </Box>
 
+      {/* ETH and USDT buttons, claim button */}
       <Flex justifyContent="space-between" width="100%" mb={4} gap={4}>
         <Button
           flex={1}
@@ -161,6 +152,7 @@ const PresaleComponent = () => {
           borderWidth="4px"
           borderColor={selectedToken === 'ETH' ? 'blue.500' : 'transparent'}
           onClick={() => setSelectedToken('ETH')}
+          isDisabled={!isConnected} // Disable if wallet not connected
           display="flex"
           alignItems="center"
           justifyContent="center"
@@ -168,6 +160,7 @@ const PresaleComponent = () => {
           <Image src="/images/eth.svg" alt="ETH Icon" boxSize="30px" mr={2} />
           ETH
         </Button>
+
         <Button
           flex={1}
           p={6}
@@ -177,6 +170,7 @@ const PresaleComponent = () => {
           borderWidth="4px"
           borderColor={selectedToken === 'USDT' ? 'blue.500' : 'transparent'}
           onClick={() => setSelectedToken('USDT')}
+          isDisabled={!isConnected} // Disable if wallet not connected
           display="flex"
           alignItems="center"
           justifyContent="center"
@@ -184,6 +178,7 @@ const PresaleComponent = () => {
           <Image src="/images/usdt.svg" alt="USDT Icon" boxSize="30px" mr={2} />
           USDT
         </Button>
+
         <Button
           flex={1}
           p={6}
@@ -192,16 +187,18 @@ const PresaleComponent = () => {
           borderRadius="md"
           borderWidth="4px"
           borderColor="transparent"
+          onClick={handleClaimTokens}
+          isDisabled={!isConnected} // Disable if wallet not connected
           display="flex"
           alignItems="center"
           justifyContent="center"
-          onClick={handleClaimTokens}
         >
           <Image src="/images/claimbd.png" alt="Claim Icon" boxSize="30px" mr={2} />
           Claim
         </Button>
       </Flex>
 
+      {/* Token amount input */}
       <Flex justifyContent="space-between" width="100%" mb={8}>
         <Box width="48%">
           <Text mb={2} fontSize="sm">Enter {selectedToken} amount</Text>
@@ -218,6 +215,7 @@ const PresaleComponent = () => {
               textAlign="right"
               value={selectedToken === 'ETH' ? ethAmount : usdtAmount}
               onChange={(e) => selectedToken === 'ETH' ? setEthAmount(e.target.value) : setUsdtAmount(e.target.value)}
+              isDisabled={!isConnected} // Disable input if wallet not connected
             />
           </InputGroup>
         </Box>
@@ -235,11 +233,13 @@ const PresaleComponent = () => {
               size="lg"
               borderRadius="md"
               textAlign="right"
+              isDisabled={!isConnected} // Disable input if wallet not connected
             />
           </InputGroup>
         </Box>
       </Flex>
 
+      {/* Purchase button */}
       <Button
         colorScheme="blue"
         mt={4}
@@ -247,9 +247,22 @@ const PresaleComponent = () => {
         size="lg"
         borderRadius="xl"
         onClick={selectedToken === 'ETH' ? handleBuyWithETH : handleBuyWithUSDT}
+        isDisabled={!isConnected} // Disable if wallet not connected
       >
         {selectedToken === 'ETH' ? 'Buy with ETH' : 'Buy with USDT'}
       </Button>
+
+      {/* Add contract address under the buttons */}
+      <Box mt={4} textAlign="center">
+        <Text fontSize="md" fontWeight="bold">Token Address: {contractAddress}</Text>
+      </Box>
+
+      {/* Display connected wallet address at the bottom */}
+      <Box mt={8} textAlign="center" color="gray.300">
+        <Text fontSize="md">
+          {isConnected ? `Connected Wallet: ${address}` : 'No wallet connected'}
+        </Text>
+      </Box>
     </Flex>
   );
 };
