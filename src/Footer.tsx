@@ -133,48 +133,8 @@ const NewPage = () => {
             {/*///////////////////////////////*/}
 
 
-            <Box
-              flex={1}
-              minW="300px"
-              m={2}
-              p={7}
-              borderRadius="2xl"
-              boxShadow="md"
-              textAlign="center"
-              bg="rgba(0, 0, 0, 0.61)"
-              border="2px"
-              borderColor="#fff"
-            >
-              <Link to="/">
-              <Text
-          textAlign="center"
-          color="white"
-          fontSize="4xl"
-          fontWeight="bolder"
-          >
-          Presale
-          </Text>
+                        {/*///////////////////////////////*/}
 
-                <Image src="images/logobwb.png" alt="header" mx="auto" width="40%" minW="250px" mt="28px" />
-
-
-                  <Flex justifyContent="center" flexWrap="wrap">
-                    <Text mt="10px" width="60%" textAlign="center" fontSize="lg" fontWeight="normal">
-
-                    </Text>
-                  </Flex>
-
-                  <Flex justifyContent="center" flexWrap="wrap">
-                  <Text width="60%" textAlign="center" fontSize="lg" fontWeight="normal">
-                  </Text>
-                </Flex>
-
-
-              </Link>
-            </Box>
-
-
-            {/*///////////////////////////////*/}
 
                             {/*///////////////////////////////*/}
 

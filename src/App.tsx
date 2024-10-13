@@ -5,7 +5,6 @@ import './styles.css';
 import Intro from './Intro';
 import Presalecomponent from './Presalecomponent';
 
-Presalecomponent
 
 
 
